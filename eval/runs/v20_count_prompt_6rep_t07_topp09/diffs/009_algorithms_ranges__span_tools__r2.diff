@@ -1,0 +1,52 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..48e9dc2 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -2,6 +2,9 @@
+ 
+ #include <stdexcept>
+ 
++#include <algorithm>
++#include <numeric>
++
+ namespace tiny {
+ 
+ Matrix::Matrix(std::size_t rows, std::size_t cols)
+@@ -41,17 +44,27 @@ std::vector<double> Matrix::SumPerRow() const {
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
+-    std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
+-    return result;
++    std::vector<double> result(cols_);
++    // Drive the per-column outputs with std::transform. The input range is
++    // a list of column indices [0, 1, ..., cols_-1]; for each column c the
++    // output is the sum of at(r, c) over all rows, computed by
++    // std::accumulate over a row-index sequence. The cache access pattern
++    // is the same as the hand-rolled version (stride == cols_ doubles) -
++    // this is still the slow path - but the structure now uses the
++    // standard algorithms.
++    std::vector<std::size_t> rows(rows_);
++    std::iota(rows.begin(), rows.end(), std::size_t{0});
++    std::vector<std::size_t> columns(cols_);
++    std::iota(columns.begin(), columns.end(), std::size_t{0});
++    std::transform(columns.begin(), columns.end(), result.begin(),
++                   [this, &rows](std::size_t c) {
++                       return std::accumulate(
++                           rows.begin(), rows.end(), 0.0,
++                           [this, c](double sum, std::size_t r) {
++                               return sum + at(r, c);
++                           });
++                   });
+ }
+-
+ // In-place transpose of a square matrix. We swap at(i, j) with at(j, i)
+ // for the upper triangle. The row-major layout means at(i, j) reads
+ // `cols_` elements ahead of the previous read - on a wide matrix that

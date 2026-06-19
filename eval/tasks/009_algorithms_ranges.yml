@@ -1,0 +1,43 @@
+id: 009_algorithms_ranges
+fixture: tiny_cpp
+user_prompt: |
+  Modernize Matrix::SumPerColumn in src/matrix.cpp. The current implementation
+  uses a hand-rolled double for-loop. Rewrite it so std::transform drives
+  the per-column outputs and std::accumulate computes each column sum.
+
+  The function signature, behavior, and the surrounding file must remain
+  unchanged. The rewrite must produce identical results to the original.
+  Do not touch any other function in the file. Do not change the header.
+  You may add required standard-library includes, but do not introduce new
+  external dependencies. Verify the build still passes.
+
+  std::transform needs `<algorithm>`; std::accumulate needs `<numeric>`.
+  Add both. Keep the existing `<stdexcept>` include exactly as is - do not
+  drop or reorder it. SumPerColumn's body ends at its own closing `}`,
+  immediately followed by `TransposeSquare`; edit only inside that body and
+  leave TransposeSquare and the namespace braces untouched.
+
+allowed_paths:
+  - src/matrix.cpp
+
+checks:
+  # We use build-only here because the broader test suite contains
+  # unrelated failures (Median is intentionally broken in the fixture
+  # for task 008; that bug is not 009's responsibility).
+  - name: build
+    cmd: 'set +e; cmake -S . -B build -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -20; rc_cfg=${PIPESTATUS[0]}; cmake --build build -j2 2>&1 | tail -30; rc_build=${PIPESTATUS[0]}; build/tests/tiny_tests 2>&1; rc_test=${PIPESTATUS[0]}; echo "EXIT_CFG=$rc_cfg EXIT_BUILD=$rc_build EXIT_TEST=$rc_test"; [ $rc_cfg -eq 0 ] && [ $rc_build -eq 0 ]'
+
+limits:
+  max_turns: 12
+  max_tool_calls: 40
+  max_changed_files: 2
+
+oracle:
+  required_contains:
+    - path: src/matrix.cpp
+      text: "std::transform("
+    - path: src/matrix.cpp
+      text: "std::accumulate("
+  forbidden_contains:
+    - path: src/matrix.cpp
+      text: "for (std::size_t c = 0; c < cols_; ++c) {\n        double s = 0.0;\n        for (std::size_t r = 0; r < rows_; ++r) {\n            s += at(r, c);\n        }\n        result[c] = s;\n    }"

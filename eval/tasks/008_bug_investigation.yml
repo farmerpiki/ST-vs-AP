@@ -1,0 +1,38 @@
+id: 008_bug_investigation
+fixture: tiny_cpp
+user_prompt: |
+  I'm getting these test failures:
+
+      CHECK_EQ(Median({1, 2, 3, 4}), 2.5)       got 2.0
+      CHECK_EQ(Median({4, 1, 3, 2}), 2.5)       got 2.0
+
+  The odd-length tests pass, and the empty-input test passes. The bug is
+  in src/stats.cpp. Read the code, find the bug, and fix it. The Median
+  function should be a one-liner change - either an index fix or a small
+  refactor. The build should pass when you're done. Do not change the
+  public API. Do not touch the test file. Do not change Mean, Sorted, or
+  MinMaxBuckets.
+
+allowed_paths:
+  - src/stats.cpp
+
+checks:
+  # Build + binary runs. We don't use ctest because the broken Median
+  # The fixture's stats_test.cpp has a deliberately broken Median
+  # which is the bug this task fixes.
+  - name: build
+    cmd: 'set +e; cmake -S . -B build -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -20; rc_cfg=${PIPESTATUS[0]}; cmake --build build -j2 2>&1 | tail -30; rc_build=${PIPESTATUS[0]}; build/tests/tiny_tests 2>&1; rc_test=${PIPESTATUS[0]}; echo "EXIT_CFG=$rc_cfg EXIT_BUILD=$rc_build EXIT_TEST=$rc_test"; [ $rc_cfg -eq 0 ] && [ $rc_build -eq 0 ]'
+
+limits:
+  max_turns: 12
+  max_tool_calls: 40
+  max_changed_files: 2
+
+oracle:
+  # The fix is to compute the mean of the two middle elements for even-length input.
+  forbidden_contains:
+    - path: src/stats.cpp
+      text: "return samples[n / 2 - 1];"
+  required_contains:
+    - path: src/stats.cpp
+      text: "samples[n / 2]"

@@ -1,0 +1,46 @@
+diff --git a/include/parser.hpp b/include/parser.hpp
+index fdd346c..95e3468 100644
+--- a/include/parser.hpp
++++ b/include/parser.hpp
+@@ -12,7 +12,7 @@ struct Token {
+     int kind;
+ };
+ 
+-std::optional<std::string> ParseName(std::string_view input);
++std::optional<std::string> ParseIdentifier(std::string_view input);
+ std::vector<Token> Tokenize(std::string_view input);
+ 
+ }  // namespace tiny
+diff --git a/src/parser.cpp b/src/parser.cpp
+index 614be90..ae70752 100644
+--- a/src/parser.cpp
++++ b/src/parser.cpp
+@@ -45,7 +45,7 @@ bool IsWhitespace(char c) {
+     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+ }
+ 
+-std::optional<std::string> ParseName(std::string_view input) {
++std::optional<std::string> ParseIdentifier(std::string_view input) {
+     std::string acc;
+     for (std::size_t i = 0; i < input.size(); ++i) {
+         if (input[i] == ':' && i + 1 < input.size() && input[i + 1] == ':') {
+diff --git a/tests/parser_test.cpp b/tests/parser_test.cpp
+index 7374c81..57877cc 100644
+--- a/tests/parser_test.cpp
++++ b/tests/parser_test.cpp
+@@ -2,12 +2,12 @@
+ #include "parser.hpp"
+ 
+ void RegisterParserTests() {
+-    // Smoke: ParseName("foo") should yield "foo".
+-    auto r = tiny::ParseName("foo");
++    // Smoke: ParseIdentifier("foo") should yield "foo".
++    auto r = tiny::ParseIdentifier("foo");
+     TINY_CHECK(r.has_value());
+     if (r) TINY_CHECK_EQ(*r, std::string("foo"));
+ 
+     // Empty input must now be rejected.
+-    auto e = tiny::ParseName("");
++    auto e = tiny::ParseIdentifier("");
+     TINY_CHECK(!e.has_value());
+ }

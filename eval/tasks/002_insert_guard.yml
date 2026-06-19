@@ -1,0 +1,40 @@
+id: 002_insert_guard
+fixture: tiny_cpp
+user_prompt: |
+  In ParseName, insert an explicit empty-input guard as the first statement: return std::nullopt before `std::string acc;` or any input read.
+
+allowed_paths:
+  - src/parser.cpp
+
+checks:
+  - name: build
+    cmd: 'set +e; cmake -S . -B build -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -20; rc_cfg=${PIPESTATUS[0]}; cmake --build build -j2 2>&1 | tail -30; rc_build=${PIPESTATUS[0]}; build/tests/tiny_tests 2>&1; rc_test=${PIPESTATUS[0]}; echo "EXIT_CFG=$rc_cfg EXIT_BUILD=$rc_build EXIT_TEST=$rc_test"; [ $rc_cfg -eq 0 ] && [ $rc_build -eq 0 ]'
+
+limits:
+  max_turns: 12
+  max_tool_calls: 40
+  max_changed_files: 2
+
+oracle:
+  # The task asks for an explicit empty-input guard that returns
+  # std::nullopt *before* any read of input[0]. The guard phrasing
+  # is up to the model; accept any of the common shapes:
+  #   if (input.empty()) return std::nullopt;
+  #   if (input.empty()) { return std::nullopt; }
+  #   if (!input.empty()) { ... } else return std::nullopt;
+  #   if (input.size() == 0) return std::nullopt;
+  # Strategy: verify the file mentions "input.empty" (or size/length
+  # compared to 0) AND mentions "return std::nullopt", AND the guard
+  # comes before any read of input[i].
+  required_regex:
+    - path: src/parser.cpp
+      pattern: 'input\.(empty|size\(\)\s*[<>=]+\s*0|length\(\)\s*[<>=]+\s*0)'
+  required_contains:
+    - path: src/parser.cpp
+      text: "return std::nullopt"
+  required_position:
+    - path: src/parser.cpp
+      before_re: 'input\.empty'
+      # Capturing group scopes the position check to reads inside ParseName;
+      # earlier Tokenize input[i] reads must not count as the after anchor.
+      after_re: 'ParseName[\s\S]*?(input\[[^\]]+\])'

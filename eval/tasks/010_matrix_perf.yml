@@ -1,0 +1,46 @@
+id: 010_matrix_perf
+fixture: tiny_cpp
+user_prompt: |
+  Matrix::SumPerColumn in src/matrix.cpp is a hot path. Profiling shows it
+  blows the L1 cache on inputs larger than 256x256 because the inner loop
+  strides by `cols_` doubles (kilobytes apart) on every access.
+
+  Rewrite the function so the inner loop walks contiguous memory. The simplest
+  approach: iterate in row-major order with the outer loop over rows and the
+  inner loop over columns, accumulating into per-column output. After your
+  fix, every inner-loop access should be `data_[r * cols_ + c]` (or
+  equivalent contiguous access) for consecutive `c` values.
+
+  The function signature, behavior, and the rest of the file must remain
+  unchanged. The matrix tests in tests/matrix_test.cpp must still pass. Do
+  not touch any other function. Do not change the header. Do not introduce
+  new dependencies. Verify the build still passes.
+
+allowed_paths:
+  - src/matrix.cpp
+
+checks:
+  # Build only, not ctest, because the test suite contains an unrelated
+  # broken Median test (task 008's bug, not 010's responsibility).
+  - name: build
+    cmd: 'set +e; cmake -S . -B build -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -20; rc_cfg=${PIPESTATUS[0]}; cmake --build build -j2 2>&1 | tail -30; rc_build=${PIPESTATUS[0]}; build/tests/tiny_tests 2>&1; rc_test=${PIPESTATUS[0]}; echo "EXIT_CFG=$rc_cfg EXIT_BUILD=$rc_build EXIT_TEST=$rc_test"; [ $rc_cfg -eq 0 ] && [ $rc_build -eq 0 ]'
+
+limits:
+  max_turns: 12
+  max_tool_calls: 40
+  max_changed_files: 2
+
+oracle:
+  # Accept any valid contiguous-access (row-major) fix. The required
+  # pattern is "a nested loop where the outer iterates rows_ and the
+  # inner iterates cols_, and the body reads data_[r * cols_ + c] (or
+  # equivalent: at(r, c), data_[base + c], etc.) and accumulates into
+  # result[c]". This allows the model to inline the index, hoist a
+  # base pointer, etc. The forbidden pattern is the column-outer /
+  # row-inner variant that caused the cache miss.
+  required_regex:
+    - path: src/matrix.cpp
+      pattern: 'for\s*\([^)]*rows_[^)]*\)\s*\{[^{}]*for\s*\([^)]*cols_[^)]*\)\s*\{[^{}]*result\s*\[\s*c\s*\]\s*\+='
+  forbidden_contains:
+    - path: src/matrix.cpp
+      text: "double s = 0.0;\n        for (std::size_t r = 0; r < rows_; ++r) {\n            s += at(r, c);\n        }\n        result[c] = s;"

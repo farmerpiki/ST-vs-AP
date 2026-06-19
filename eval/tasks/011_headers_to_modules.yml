@@ -1,0 +1,106 @@
+id: 011_headers_to_modules
+fixture: modules_cpp
+user_prompt: |
+  Convert this small C++ project from headers to C++20 modules. The build
+  uses CMake + Ninja. Do NOT use `import std` — keep standard-library
+  headers (e.g. <cmath>) via a global module fragment. This is a pure
+  mechanical conversion: drop the project headers, turn each .cpp into a
+  module interface unit, and add `export` to the public declarations. Do
+  not change any function body.
+
+  Concretely:
+    - src/vec.cpp becomes the interface of module `geo.vec`: add
+      `export module geo.vec;` at the top and put `export` on Vec2, Add,
+      and Cross. Keep their bodies exactly as they are. Put `export`
+      directly on each declaration individually (`export struct Vec2`,
+      `export Vec2 Add(...)`, `export double Cross(...)`) — do NOT wrap
+      them in a single `export namespace geo { ... }` block instead.
+    - src/shape.cpp becomes the interface of module `geo.shape`: open a
+      global module fragment (`module;`) for `#include <cmath>`, then
+      `export module geo.shape;`, then `import geo.vec;`, and put `export`
+      directly on TriangleArea's own declaration (not via a wrapping
+      `export namespace { ... }` block). Keep its body exactly as it is.
+    - src/app.cpp: replace `#include "shape.hpp"` with `import geo.shape;`.
+      Leave main() unchanged.
+    - Drop the headers: empty src/vec.hpp and src/shape.hpp (no
+      declarations, no `#pragma once`) and remove every `#include` of a
+      project header.
+    - Update CMakeLists.txt: move src/vec.cpp and src/shape.cpp into
+      `target_sources(app PRIVATE FILE_SET CXX_MODULES FILES ...)`.
+
+  Keep the import graph acyclic and diamond-free: app imports only
+  geo.shape, and geo.shape imports geo.vec. Verify the build still passes.
+
+allowed_paths:
+  - src
+  - CMakeLists.txt
+
+checks:
+  # Configure + build with Ninja. Module scanning + the body-pinning
+  # oracle below are what prove correctness, so no separate run step.
+  - name: build
+    cmd: 'set +e; cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -20; rc_cfg=${PIPESTATUS[0]}; cmake --build build 2>&1 | tail -30; rc_build=${PIPESTATUS[0]}; echo "EXIT_CFG=$rc_cfg EXIT_BUILD=$rc_build"; [ $rc_cfg -eq 0 ] && [ $rc_build -eq 0 ]'
+
+limits:
+  max_turns: 20
+  max_tool_calls: 60
+  max_changed_files: 6
+
+oracle:
+  required_contains:
+    # module wiring
+    - path: src/vec.cpp
+      text: "export module geo.vec;"
+    - path: src/shape.cpp
+      text: "export module geo.shape;"
+    - path: src/shape.cpp
+      text: "import geo.vec;"
+    - path: src/app.cpp
+      text: "import geo.shape;"
+    # function bodies must be byte-identical to the originals
+    - path: src/vec.cpp
+      text: "    return {a.x + b.x, a.y + b.y};"
+    - path: src/vec.cpp
+      text: "    return a.x * b.y - a.y * b.x;"
+    - path: src/shape.cpp
+      text: "    return std::fabs(Cross(a, b)) / 2.0;"
+    # cmake module wiring
+    - path: CMakeLists.txt
+      text: "CXX_MODULES"
+
+  required_regex:
+    # export must sit on the function (and struct) declarations
+    - path: src/vec.cpp
+      pattern: 'export\s+struct\s+Vec2'
+    - path: src/vec.cpp
+      pattern: 'export\s+Vec2\s+Add\s*\('
+    - path: src/vec.cpp
+      pattern: 'export\s+double\s+Cross\s*\('
+    - path: src/shape.cpp
+      pattern: 'export\s+double\s+TriangleArea\s*\('
+
+  forbidden_contains:
+    # no project headers remain in use, and the header files are emptied
+    - path: src/vec.hpp
+      text: "#pragma once"
+    - path: src/vec.hpp
+      text: "Vec2"
+    - path: src/shape.hpp
+      text: "#pragma once"
+    - path: src/shape.hpp
+      text: "TriangleArea"
+    - path: src/vec.cpp
+      text: '#include "vec.hpp"'
+    - path: src/shape.cpp
+      text: '#include "shape.hpp"'
+    - path: src/shape.cpp
+      text: '#include "vec.hpp"'
+    - path: src/app.cpp
+      text: '#include "shape.hpp"'
+    # no import std (keep std headers via the global module fragment)
+    - path: src/vec.cpp
+      text: "import std;"
+    - path: src/shape.cpp
+      text: "import std;"
+    - path: src/app.cpp
+      text: "import std;"

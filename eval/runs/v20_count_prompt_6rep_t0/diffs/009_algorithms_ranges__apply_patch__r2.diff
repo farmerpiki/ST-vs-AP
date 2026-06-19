@@ -1,0 +1,45 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..5f1d949 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
+ #include <stdexcept>
++#include <algorithm>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -42,13 +44,25 @@ std::vector<double> Matrix::SumPerRow() const {
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
++    // Drive per-column outputs with std::transform; each output element is
++    // computed by std::accumulate over a materialised view of that column.
++    // Column data is strided in the row-major backing store, so we collect
++    // the column's values into a temporary before summing. This preserves
++    // the original semantics (sum row 0..rows_-1 for each column).
++    std::vector<std::size_t> columns(cols_);
++    for (std::size_t i = 0; i < cols_; ++i) {
++        columns[i] = i;
+     }
++    std::transform(columns.begin(), columns.end(), result.begin(),
++                   [this](std::size_t c) {
++                       std::vector<double> column_values;
++                       column_values.reserve(rows_);
++                       for (std::size_t r = 0; r < rows_; ++r) {
++                           column_values.push_back(at(r, c));
++                       }
++                       return std::accumulate(column_values.begin(),
++                                              column_values.end(), 0.0);
++                   });
+     return result;
+ }
+ 

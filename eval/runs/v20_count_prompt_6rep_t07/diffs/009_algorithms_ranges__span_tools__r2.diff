@@ -1,0 +1,48 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..dea4878 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -2,6 +2,9 @@
+ 
+ #include <stdexcept>
+ 
++#include <algorithm>
++#include <numeric>
++
+ namespace tiny {
+ 
+ Matrix::Matrix(std::size_t rows, std::size_t cols)
+@@ -41,17 +44,25 @@ std::vector<double> Matrix::SumPerRow() const {
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
+-    std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    std::vector<std::size_t> cols(cols_);
++    std::iota(cols.begin(), cols.end(), std::size_t{0});
++    std::vector<double> result(cols_);
++    const double* base = data_.data();
++    std::transform(cols.begin(), cols.end(), result.begin(),
++                   [base, this](std::size_t c) {
++                       std::vector<const double*> ptrs;
++                       ptrs.reserve(rows_);
++                       for (std::size_t r = 0; r < rows_; ++r) {
++                           ptrs.push_back(base + r * cols_ + c);
++                       }
++                       return std::accumulate(
++                           ptrs.begin(), ptrs.end(), 0.0,
++                           [](double acc, const double* p) { return acc + *p; });
++                   });
+     return result;
+ }
+ 
++
+ // In-place transpose of a square matrix. We swap at(i, j) with at(j, i)
+ // for the upper triangle. The row-major layout means at(i, j) reads
+ // `cols_` elements ahead of the previous read - on a wide matrix that

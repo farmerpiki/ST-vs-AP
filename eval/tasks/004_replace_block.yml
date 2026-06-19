@@ -1,0 +1,30 @@
+id: 004_replace_block
+fixture: tiny_cpp
+user_prompt: |
+  Simplify ClampToByte so values below 0 return 0 and values above 255 return 255. The function must remain in src/normalize.cpp.
+
+allowed_paths:
+  - src/normalize.cpp
+
+checks:
+  # Build + run binary tests. The fixture's stats_test.cpp has a
+  # deliberately broken Median (task 008's bug); the test runner
+  # prints "checks=N failures=M" and tool_run_check parses it to
+  # report tests_passed / verdict to the model.
+  - name: build
+    cmd: 'set +e; cmake -S . -B build -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -20; rc_cfg=${PIPESTATUS[0]}; cmake --build build -j2 2>&1 | tail -30; rc_build=${PIPESTATUS[0]}; build/tests/tiny_tests 2>&1; rc_test=${PIPESTATUS[0]}; echo "EXIT_CFG=$rc_cfg EXIT_BUILD=$rc_build EXIT_TEST=$rc_test"; [ $rc_cfg -eq 0 ] && [ $rc_build -eq 0 ]'
+
+limits:
+  max_turns: 12
+  max_tool_calls: 40
+  max_changed_files: 2
+
+oracle:
+  required_contains: []
+  forbidden_contains:
+    - path: src/normalize.cpp
+      text: "Old verbose form kept for reference"
+    - path: src/normalize.cpp
+      text: "result = 0"
+    - path: src/normalize.cpp
+      text: "result = 255"

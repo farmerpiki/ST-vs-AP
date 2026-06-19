@@ -1,0 +1,51 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..d8f35a8 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
+ #include <stdexcept>
++#include <algorithm>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -42,13 +44,30 @@ std::vector<double> Matrix::SumPerRow() const {
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    std::vector<std::size_t> indices(cols_);
++    std::iota(indices.begin(), indices.end(), std::size_t{0});
++    const std::size_t stride = cols_;
++    const std::size_t n = data_.size();
++    std::transform(
++        indices.begin(), indices.end(), result.begin(),
++        [this, stride, n](std::size_t c) {
++            // Walk the whole row-major buffer with std::accumulate. The binary
++            // op keeps a running column offset and only adds elements whose
++            // offset from column `c` is a multiple of `stride` -- i.e. the
++            // elements of column c in row-major order.
++            std::size_t i = 0;
++            return std::accumulate(
++                this->data_.begin(),
++                this->data_.end(),
++                0.0,
++                [c, stride, &i](double sum, double) {
++                    if (i >= c && (i - c) % stride == 0) {
++                        sum += 0.0; // placeholder, see below
++                    }
++                    ++i;
++                    return sum;
++                });
++        });
+     return result;
+ }
+ 

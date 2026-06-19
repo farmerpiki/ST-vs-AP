@@ -1,0 +1,47 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..458863a 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -2,6 +2,9 @@
+ 
+ #include <stdexcept>
+ 
++#include <algorithm>
++#include <numeric>
++
+ namespace tiny {
+ 
+ Matrix::Matrix(std::size_t rows, std::size_t cols)
+@@ -41,14 +44,25 @@ std::vector<double> Matrix::SumPerRow() const {
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
++    struct ColumnIter {
++        const double* p;
++        std::ptrdiff_t stride;
++        const double& operator*() const { return *p; }
++        ColumnIter& operator++() { p += stride; return *this; }
++        bool operator!=(const ColumnIter& o) const { return p != o.p; }
++    };
++    std::vector<std::size_t> cols(cols_);
++    std::iota(cols.begin(), cols.end(), std::size_t{0});
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    std::transform(cols.begin(), cols.end(), result.begin(),
++                   [this](std::size_t c) {
++                       ColumnIter begin{&at(0, c),
++                                        static_cast<std::ptrdiff_t>(cols_)};
++                       ColumnIter end{begin.p + static_cast<std::ptrdiff_t>(rows_) *
++                                                  begin.stride,
++                                      begin.stride};
++                       return std::accumulate(begin, end, 0.0);
++                   });
+     return result;
+ }
+ 

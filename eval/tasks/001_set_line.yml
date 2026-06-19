@@ -1,0 +1,29 @@
+id: 001_set_line
+fixture: tiny_cpp
+user_prompt: |
+  Change the default retry count from 3 to 5.
+
+allowed_paths:
+  - include/config.hpp
+
+checks:
+  # Build + run binary tests. The fixture's stats_test.cpp has a
+  # deliberately broken Median (task 008's bug); the test runner
+  # prints "checks=N failures=M" and tool_run_check parses it to
+  # report tests_passed / verdict to the model.
+  - name: build
+    cmd: 'set +e; cmake -S . -B build -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -20; rc_cfg=${PIPESTATUS[0]}; cmake --build build -j2 2>&1 | tail -30; rc_build=${PIPESTATUS[0]}; build/tests/tiny_tests 2>&1; rc_test=${PIPESTATUS[0]}; echo "EXIT_CFG=$rc_cfg EXIT_BUILD=$rc_build EXIT_TEST=$rc_test"; [ $rc_cfg -eq 0 ] && [ $rc_build -eq 0 ]'
+
+
+limits:
+  max_turns: 12
+  max_tool_calls: 40
+  max_changed_files: 3
+
+oracle:
+  required_contains:
+    - path: include/config.hpp
+      text: "constexpr int kDefaultRetries = 5;"
+  forbidden_contains:
+    - path: include/config.hpp
+      text: "constexpr int kDefaultRetries = 3;"

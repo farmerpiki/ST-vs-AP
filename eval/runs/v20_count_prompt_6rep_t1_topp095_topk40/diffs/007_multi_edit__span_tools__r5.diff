@@ -1,0 +1,59 @@
+diff --git a/include/users.hpp b/include/users.hpp
+index a9089d8..9403063 100644
+--- a/include/users.hpp
++++ b/include/users.hpp
+@@ -11,10 +11,9 @@ struct User {
+     int id = 0;
+ };
+ 
+-// FindUser returns true if a user with the given id is known.
+-// Returning bool means callers cannot tell apart "missing" from "error".
+-bool FindUser(int id, User* out);
+-
++// FindUser returns the user with the given id, or std::nullopt if missing.
++// Returning std::optional means callers cannot tell apart "missing" from "error".
++std::optional<User> FindUser(int id);
+ std::vector<User> ListUsers();
+ 
+ }  // namespace tiny
+diff --git a/src/parser.cpp b/src/parser.cpp
+index 614be90..be9e467 100644
+--- a/src/parser.cpp
++++ b/src/parser.cpp
+@@ -17,11 +17,9 @@ bool IsWhitespace(char c);
+ 
+ std::vector<Token> Tokenize(std::string_view input) {
+     std::vector<Token> out;
+-    // Validate the active user can see the parser. The result is unused
+-    // at runtime; the check exists to keep an edit call-site for task 007.
+-    User u;
+-    bool seen = FindUser(1, &u);
+-    (void)seen;
++    // The result is unused at runtime; the call exists to keep an edit
++    // call-site for task 007.
++    (void)FindUser(1);
+     std::size_t i = 0;
+     while (i < input.size()) {
+         if (IsWhitespace(input[i])) {
+diff --git a/src/users.cpp b/src/users.cpp
+index 707d1f8..b28b536 100644
+--- a/src/users.cpp
++++ b/src/users.cpp
+@@ -15,14 +15,13 @@ const std::vector<User>& KnownUsers() {
+ }
+ }  // namespace
+ 
+-bool FindUser(int id, User* out) {
++std::optional<User> FindUser(int id) {
+     for (const auto& u : KnownUsers()) {
+         if (u.id == id) {
+-            if (out) *out = u;
+-            return true;
++            return u;
+         }
+     }
+-    return false;
++    return std::nullopt;
+ }
+ 
+ std::vector<User> ListUsers() {

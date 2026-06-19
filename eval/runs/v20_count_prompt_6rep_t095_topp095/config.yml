@@ -1,0 +1,25 @@
+model: minimax
+variants:
+- apply_patch
+- span_tools
+repeats: 6
+temperature: 0.95
+top_p: 0.95
+top_k: null
+max_turns: null
+max_tool_calls: null
+keep_worktrees: false
+strict_gold_diff: false
+seed: 0
+tasks:
+- eval/tasks/001_set_line.yml
+- eval/tasks/002_insert_guard.yml
+- eval/tasks/003_delete_block.yml
+- eval/tasks/004_replace_block.yml
+- eval/tasks/005_move_helper.yml
+- eval/tasks/006_rename_identifier.yml
+- eval/tasks/007_multi_edit.yml
+- eval/tasks/008_bug_investigation.yml
+- eval/tasks/009_algorithms_ranges.yml
+- eval/tasks/010_matrix_perf.yml
+- eval/tasks/011_headers_to_modules.yml

@@ -1,0 +1,15 @@
+diff --git a/src/parser.cpp b/src/parser.cpp
+index 614be90..8314e98 100644
+--- a/src/parser.cpp
++++ b/src/parser.cpp
+@@ -13,7 +13,9 @@ bool IsNameChar(char c) {
+ 
+ }  // namespace
+ 
+-bool IsWhitespace(char c);
++bool IsWhitespace(char c) {
++    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
++}
+ 
+ std::vector<Token> Tokenize(std::string_view input) {
+     std::vector<Token> out;

@@ -1,0 +1,42 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..ea4d5db 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
+ #include <stdexcept>
++#include <algorithm>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -42,13 +44,21 @@ std::vector<double> Matrix::SumPerRow() const {
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    const std::size_t stride = cols_;
++    std::vector<std::size_t> row_idx(static_cast<std::size_t>(0));
++    row_idx.resize(rows_);
++    std::iota(row_idx.begin(), row_idx.end(), static_cast<std::size_t>(0));
++    std::vector<std::size_t> col_idx(static_cast<std::size_t>(0));
++    col_idx.resize(cols_);
++    std::iota(col_idx.begin(), col_idx.end(), static_cast<std::size_t>(0));
++    std::transform(col_idx.begin(), col_idx.end(), result.begin(),
++                   [this, stride, &row_idx](std::size_t c) {
++        return std::accumulate(
++            row_idx.begin(), row_idx.end(), 0.0,
++            [this, c, stride](double acc, std::size_t r) {
++                return acc + data_[r * stride + c];
++            });
++    });
+     return result;
+ }
+ 

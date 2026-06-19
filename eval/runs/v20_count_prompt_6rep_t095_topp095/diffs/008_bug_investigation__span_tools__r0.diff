@@ -1,0 +1,13 @@
+diff --git a/src/stats.cpp b/src/stats.cpp
+index e4575d5..5466c11 100644
+--- a/src/stats.cpp
++++ b/src/stats.cpp
+@@ -18,7 +18,7 @@ double Median(std::vector<double> samples) {
+     }
+     // BUG: even-length returns the lower middle value instead of the mean.
+     // For [1, 2, 3, 4] we return 2.0 instead of 2.5.
+-    return samples[n / 2 - 1];
++    return (samples[n / 2 - 1] + samples[n / 2]) / 2;
+ }
+ 
+ double Mean(const std::vector<double>& samples) {

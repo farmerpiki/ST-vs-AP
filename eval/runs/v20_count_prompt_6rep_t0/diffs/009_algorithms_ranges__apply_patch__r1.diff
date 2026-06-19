@@ -1,0 +1,43 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..45c9ce6 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
++#include <algorithm>
+ #include <stdexcept>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -42,13 +44,22 @@ std::vector<double> Matrix::SumPerRow() const {
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    struct Strided {
++        const double* p;
++        std::ptrdiff_t s;
++        const double& operator*() const { return *p; }
++        Strided& operator++() { p += s; return *this; }
++        bool operator!=(const Strided& o) const { return p != o.p; }
++    };
++    const std::size_t step = cols_;
++    std::size_t c = 0;
++    std::transform(result.begin(), result.end(), result.begin(),
++                   [&](double) {
++                       const std::size_t col = c++;
++                       Strided b{std::next(data_.data(), (std::ptrdiff_t)col), (std::ptrdiff_t)step};
++                       Strided e{std::next(data_.data(), (std::ptrdiff_t)(col + rows_ * step)), 0};
++                       return std::accumulate(b, e, 0.0, std::plus<double>());
++                   });
+     return result;
+ }
+ 

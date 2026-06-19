@@ -1,0 +1,13 @@
+diff --git a/include/config.hpp b/include/config.hpp
+index df76d82..e9c0881 100644
+--- a/include/config.hpp
++++ b/include/config.hpp
+@@ -2,7 +2,7 @@
+ 
+ namespace tiny {
+ 
+-constexpr int kDefaultRetries = 3;
++constexpr int kDefaultRetries = 5;
+ constexpr int kMaxRetries = 10;
+ constexpr int kBufferSize = 1024;
+ 

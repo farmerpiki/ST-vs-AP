@@ -1,0 +1,12 @@
+diff --git a/src/parser.cpp b/src/parser.cpp
+index 614be90..2b5a81d 100644
+--- a/src/parser.cpp
++++ b/src/parser.cpp
+@@ -46,6 +46,7 @@ bool IsWhitespace(char c) {
+ }
+ 
+ std::optional<std::string> ParseName(std::string_view input) {
++    if (input.empty()) return std::nullopt;
+     std::string acc;
+     for (std::size_t i = 0; i < input.size(); ++i) {
+         if (input[i] == ':' && i + 1 < input.size() && input[i + 1] == ':') {

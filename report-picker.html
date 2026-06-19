@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fixed-width AP/SP Report Viewer</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #11182d;
+    --panel2: #0f1629;
+    --line: #27324c;
+    --text: #e8eefc;
+    --muted: #9aa7bd;
+    --row: rgba(69, 133, 255, 0.16);
+    --col: rgba(255, 255, 255, 0.10);
+    --cell: rgba(255, 209, 102, 0.30);
+    --cell-border: #ffd166;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 12px 16px;
+    background: rgba(11, 16, 32, 0.96);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(8px);
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  button,
+  input::file-selector-button {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+    padding: 7px 10px;
+    cursor: pointer;
+  }
+
+  button:hover,
+  input::file-selector-button:hover {
+    border-color: #6ea2ff;
+  }
+
+  button.active {
+    border-color: #6ea2ff;
+    background: #1c2d50;
+  }
+
+  input[type="file"] { color: var(--muted); }
+
+  .status {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  details {
+    margin: 12px 16px 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+  }
+
+  summary {
+    cursor: pointer;
+    padding: 10px 12px;
+    color: var(--muted);
+    user-select: none;
+  }
+
+  textarea {
+    display: block;
+    width: 100%;
+    height: 220px;
+    resize: vertical;
+    border: 0;
+    border-top: 1px solid var(--line);
+    background: var(--panel2);
+    color: var(--text);
+    padding: 12px;
+    font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  #viewer {
+    padding: 16px;
+  }
+
+  .block {
+    margin: 0 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+
+  .block-title {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .block-subtitle {
+    padding: 8px 12px 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  pre {
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    background: var(--panel2);
+    color: var(--text);
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre;
+  }
+
+  .table-wrap {
+    overflow: auto;
+    max-height: 82vh;
+  }
+
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: max-content;
+    width: 100%;
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  th,
+  td {
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 6px 10px;
+    white-space: pre;
+    background: #11182d;
+    vertical-align: middle;
+  }
+
+  tbody td {
+    color: #ffffff;
+    font-weight: 500;
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: #18213a;
+    color: #dbe7ff;
+    text-align: left;
+    font-weight: 700;
+  }
+
+  th:first-child,
+  td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: #142039;
+    font-weight: 700;
+  }
+
+  th:first-child { z-index: 5; }
+
+  tbody tr:nth-child(even) td {
+    background: #0f172b;
+  }
+
+  tr.hl-row > td,
+  tr.hl-row > th {
+    background: var(--row) !important;
+  }
+
+  td.hl-col,
+  th.hl-col {
+    background: var(--col) !important;
+  }
+
+  td.hl-cell,
+  th.hl-cell {
+    background: var(--cell) !important;
+    outline: 2px solid var(--cell-border);
+    outline-offset: -2px;
+    z-index: 10;
+  }
+
+  .hint {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  /* Coloured + bold delta (replaces the semaphore emoji). Alignment is done
+     with real space padding in the monospace cells, not CSS width. */
+  .delta { font-weight: 700; }
+  .d-win  { color: #00e676; }
+  .d-loss { color: #ff3b3b; }
+  .d-tie  { color: #ffd600; }
+</style>
+</head>
+<body>
+<header>
+  <div class="controls">
+    <input id="file" type="file" accept=".txt,.log,.md,text/*" multiple />
+    <button id="renderBtn">Render pasted text</button>
+    <button id="clearBtn">Clear highlight</button>
+    <span class="hint">Hover a cell for row + column. Click to pin. Esc clears.</span>
+    <span id="status" class="status"></span>
+  </div>
+  <div id="tabs" class="tabs"></div>
+</header>
+
+<details id="inputBox" open>
+  <summary>Paste report text</summary>
+  <textarea id="source" spellcheck="false" placeholder="Paste the .txt report here, or load it with the file picker."></textarea>
+</details>
+
+<main id="viewer"></main>
+
+<script>
+const source = document.getElementById("source");
+const viewer = document.getElementById("viewer");
+const statusEl = document.getElementById("status");
+const tabsEl = document.getElementById("tabs");
+let pinned = null;
+let reports = [];
+let activeReport = "all";
+
+document.getElementById("file").addEventListener("change", async (event) => {
+  const files = Array.from(event.target.files || []);
+  if (!files.length) return;
+  reports = await Promise.all(files.map(async (file) => {
+    const text = await file.text();
+    return makeReport(text, file.name);
+  }));
+  source.value = reports.map((r) => r.text).join("\n\n");
+  activeReport = reports.length > 1 ? "all" : reports[0].id;
+  renderActive();
+});
+
+document.getElementById("renderBtn").addEventListener("click", () => {
+  reports = [makeReport(source.value, "pasted report")];
+  activeReport = reports[0].id;
+  renderActive();
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  pinned = null;
+  clearHighlights(document);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    pinned = null;
+    clearHighlights(document);
+  }
+});
+
+function makeReport(text, label) {
+  const blocks = parseReport(text, label);
+  return {
+    id: "r" + Math.random().toString(36).slice(2),
+    label,
+    text,
+    blocks,
+    threshold: parseThreshold(text) ?? 2.5,
+    repeats: parseRepeats(text) ?? 1,
+  };
+}
+
+function renderActive() {
+  pinned = null;
+  viewer.innerHTML = "";
+  renderTabs();
+
+  if (!reports.length) {
+    statusEl.textContent = "";
+    return;
+  }
+
+  if (activeReport === "all") {
+    renderAllView();
+  } else {
+    const report = reports.find((r) => r.id === activeReport) || reports[0];
+    renderReport(report);
+  }
+
+  document.getElementById("inputBox").open = false;
+}
+
+function renderTabs() {
+  tabsEl.innerHTML = "";
+  if (!reports.length) return;
+
+  tabsEl.appendChild(tabButton("all", "All"));
+  reports.forEach((report) => tabsEl.appendChild(tabButton(report.id, report.label)));
+}
+
+function tabButton(id, label) {
+  const btn = document.createElement("button");
+  btn.textContent = label;
+  btn.className = activeReport === id ? "active" : "";
+  btn.addEventListener("click", () => {
+    activeReport = id;
+    renderActive();
+  });
+  return btn;
+}
+
+function renderReport(report) {
+  let tableCount = 0;
+
+  for (const block of report.blocks) {
+    if (block.type === "table") {
+      tableCount += 1;
+      viewer.appendChild(renderTable(block, block.title || "Table " + tableCount));
+    } else if (block.text.trim()) {
+      viewer.appendChild(renderText(block.text));
+    }
+  }
+
+  statusEl.textContent = `${report.label}: ${tableCount} table${tableCount === 1 ? "" : "s"}`;
+}
+
+function renderAllView() {
+  const threshold = reports[0]?.threshold ?? 2.5;
+  const allTotals = aggregateAllRunTotals(reports, threshold);
+  const allByTask = aggregateAllRunTotalsByTask(reports, threshold);
+  const bestParams = bestParamsSummary(reports);
+  const best = aggregateBestByTask(reports, threshold);
+
+  if (bestParams) {
+    viewer.appendChild(renderInfoBlock("Best Params", bestParams));
+  }
+  if (allTotals?.combinedTable) {
+    viewer.appendChild(renderTable(allTotals.combinedTable, "All Loaded Reports - Combined All-Run Total"));
+  } else {
+    viewer.appendChild(renderInfoBlock(
+      "Notice",
+      "All-run totals were not found in the loaded report text. Load fixed-width .report.py output that includes the mini totals tables."
+    ));
+  }
+  if (allByTask) {
+    viewer.appendChild(renderTable(allByTask, "All Loaded Reports - All-Run Totals By Task"));
+  }
+  if (best.taskTable) {
+    viewer.appendChild(renderTable(best.taskTable, "All Loaded Reports - Best By Task"));
+  }
+  if (best.totalTable) {
+    viewer.appendChild(renderTable(best.totalTable, "All Loaded Reports - Totals For Best By Task"));
+  }
+
+  statusEl.textContent = `All: ${reports.length} report${reports.length === 1 ? "" : "s"}`;
+}
+
+function parseReport(text, label) {
+  const lines = stripAnsi(text).replace(/\r\n/g, "\n").replace(/\t/g, "    ").split("\n");
+  const blocks = [];
+  let textBuf = [];
+  let section = "other";
+  let tableCount = 0;
+
+  function flushText() {
+    if (textBuf.length) {
+      blocks.push({ type: "text", text: textBuf.join("\n") });
+      textBuf = [];
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const sectionName = sectionFromLine(line);
+    if (sectionName) section = sectionName;
+
+    const kind = tableKind(line);
+    if (kind) {
+      flushText();
+
+      const starts = getColumnStarts(line, kind);
+      const headers = starts.map(s => s.name);
+      const rows = [];
+      let j = i + 1;
+
+      while (j < lines.length) {
+        const rowLine = lines[j];
+
+        if (!rowLine.trim()) break;
+        if (tableKind(rowLine)) break;
+        if (/^\s*=+/.test(rowLine)) break;
+        if (/^\s*totals\s*\(/i.test(rowLine)) break;
+
+        rows.push(splitFixedRow(rowLine, starts));
+        j += 1;
+      }
+
+      tableCount += 1;
+      blocks.push({
+        type: "table",
+        kind,
+        section,
+        headers,
+        rows,
+        source: label,
+        title: tableTitle(kind, section, tableCount),
+      });
+      i = j - 1;
+    } else {
+      textBuf.push(line);
+    }
+  }
+
+  flushText();
+  return blocks;
+}
+
+function sectionFromLine(line) {
+  const s = line.toLowerCase();
+  if (s.startsWith("=== per-task")) return "per-task";
+  if (s.startsWith("=== cheapest-run")) return "cheapest";
+  return null;
+}
+
+function tableTitle(kind, section, tableCount) {
+  if (kind === "task" && section === "per-task") return "Per-Task AP vs ST";
+  if (kind === "task" && section === "cheapest") return "Cheapest-Run AP vs ST";
+  if (kind === "totals" && section === "per-task") return "Totals - All Runs";
+  if (kind === "totals" && section === "cheapest") return "Totals - Cheapest Successful";
+  return "Table " + tableCount;
+}
+
+function tableKind(line) {
+  const s = line.toLowerCase();
+  const hasMetrics =
+    s.includes("pass") &&
+    s.includes("turns") &&
+    s.includes("tools") &&
+    s.includes("cached") &&
+    s.includes("uncached") &&
+    s.includes("out") &&
+    s.includes("cost");
+  if (!hasMetrics) return null;
+
+  const head = s.trimStart();
+  if (head.startsWith("task")) return "task";    // per-task table
+  if (head.startsWith("pass")) return "totals";  // mini totals table
+  return null;
+}
+
+function getColumnStarts(header, kind) {
+  const lower = header.toLowerCase();
+  const taskSpecs = [
+    { name: "task", alts: ["task"] },
+    { name: "pass", alts: ["pass"] },
+    { name: "turns", alts: ["turns"] },
+    { name: "tools", alts: ["tools"] },
+    { name: "cached", alts: ["cached"] },
+    { name: "uncached", alts: ["uncached"] },
+    { name: "out", alts: ["out"] },
+    { name: "µ$cost", alts: ["µ$cost", "μ$cost", "$cost", "cost"] }
+  ];
+  // TOTALS table header order differs (turns first, no leading "task"),
+  // and its rows lead with an unlabeled all/best row-label column.
+  const totalsSpecs = [
+    { name: "label", alts: [""] },
+    { name: "pass", alts: ["pass"] },
+    { name: "turns", alts: ["turns"] },
+    { name: "tools", alts: ["tools"] },
+    { name: "cached", alts: ["cached"] },
+    { name: "uncached", alts: ["uncached"] },
+    { name: "out", alts: ["out"] },
+    { name: "µ$cost", alts: ["µ$cost", "μ$cost", "$cost", "cost"] }
+  ];
+  const specs = kind === "totals" ? totalsSpecs : taskSpecs;
+
+  const starts = [];
+  let cursor = 0;
+
+  for (const spec of specs) {
+    let best = spec.name === "label" ? 0 : -1;
+
+    if (spec.name !== "label") {
+      for (const alt of spec.alts) {
+        const idx = lower.indexOf(alt, cursor);
+        if (idx !== -1 && (best === -1 || idx < best)) best = idx;
+      }
+    }
+
+    if (best === -1) {
+      best = starts.length ? starts[starts.length - 1].start + 12 : 0;
+    }
+
+    starts.push({ name: spec.name, start: best });
+    cursor = best + 1;
+  }
+
+  starts.sort((a, b) => a.start - b.start);
+  return starts;
+}
+
+function splitFixedRow(line, starts) {
+  return starts.map((col, idx) => {
+    const next = starts[idx + 1];
+    const end = next ? next.start : line.length;
+    return line.slice(col.start, end).trim();
+  });
+}
+
+function renderText(text) {
+  const block = document.createElement("section");
+  block.className = "block";
+
+  const title = document.createElement("div");
+  title.className = "block-title";
+  title.textContent = "Text";
+  block.appendChild(title);
+
+  const pre = document.createElement("pre");
+  pre.textContent = text.trim();
+  block.appendChild(pre);
+
+  return block;
+}
+
+function renderInfoBlock(titleText, text) {
+  const block = document.createElement("section");
+  block.className = "block";
+
+  const title = document.createElement("div");
+  title.className = "block-title";
+  title.textContent = titleText;
+  block.appendChild(title);
+
+  const pre = document.createElement("pre");
+  pre.textContent = text;
+  block.appendChild(pre);
+
+  return block;
+}
+
+function renderTable(block, titleText) {
+  const blockEl = document.createElement("section");
+  blockEl.className = "block";
+
+  const title = document.createElement("div");
+  title.className = "block-title";
+  title.textContent = titleText;
+  blockEl.appendChild(title);
+
+  if (block.subtitle) {
+    const subtitle = document.createElement("div");
+    subtitle.className = "block-subtitle";
+    subtitle.textContent = block.subtitle;
+    blockEl.appendChild(subtitle);
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "table-wrap";
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const tbody = document.createElement("tbody");
+
+  const hr = document.createElement("tr");
+  block.headers.forEach((h, col) => {
+    const th = document.createElement("th");
+    th.textContent = h;
+    th.dataset.col = String(col);
+    hr.appendChild(th);
+  });
+  thead.appendChild(hr);
+
+  // Comparison cells are "{delta}{semaphore-emoji}{n1/n2[/...]}". Colour the
+  // delta by the emoji (win/loss/tie) and drop the emoji. The per-task pass
+  // cell is "{ap}{emoji}{st}" with no delta, so synthesise a signed +/- delta.
+  // Pre-measure per-column widths for the delta and each numeric slot so every
+  // number is right-aligned and stacks vertically across rows.
+  const deltaW = [];
+  const numW = [];
+  block.rows.forEach((row) => row.forEach((value, col) => {
+    const p = parseCompareCell(cellText(value));
+    if (!p) return;
+    deltaW[col] = Math.max(deltaW[col] || 0, p.delta.length);
+    numW[col] = numW[col] || [];
+    p.nums.forEach((n, k) => { numW[col][k] = Math.max(numW[col][k] || 0, n.length); });
+  }));
+
+  block.rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    row.forEach((value, col) => {
+      const td = document.createElement("td");
+      td.dataset.col = String(col);
+      if (value && typeof value === "object" && value.title) td.title = value.title;
+
+      const text = cellText(value);
+      const p = parseCompareCell(text);
+      if (p) {
+        // Space-pad each field to its column width (monospace + white-space:pre
+        // on the cell makes these line up), colour + bold only the delta.
+        const delta = document.createElement("span");
+        delta.className = "delta " + semaphoreClass(p.emoji);
+        delta.textContent = p.delta.padStart(deltaW[col] || 0);
+        td.appendChild(delta);
+
+        const rest = " " + p.nums
+          .map((n, k) => n.padStart((numW[col] || [])[k] || 0))
+          .join("/");
+        td.appendChild(document.createTextNode(rest));
+      } else {
+        td.textContent = text || " ";
+      }
+
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  wireTableHover(table);
+
+  wrap.appendChild(table);
+  blockEl.appendChild(wrap);
+  return blockEl;
+}
+
+function cellText(value) {
+  return value && typeof value === "object" ? value.text : String(value ?? "");
+}
+
+function parseThreshold(text) {
+  const m = text.match(/threshold\s*=\s*\+\/-([0-9.]+)%/i);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function parseRepeats(text) {
+  const m = text.match(/repeats=(\d+)/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function aggregateAllRunTotals(allReports, threshold) {
+  const rows = [];
+  for (const report of allReports) {
+    for (const table of report.blocks.filter((b) => b.kind === "totals" && b.section === "per-task")) {
+      for (const row of table.rows) {
+        const parsed = parseTotalsRow(row);
+        if (parsed) rows.push({ ...parsed, label: report.label });
+      }
+    }
+  }
+  if (!rows.length) return null;
+
+  const total = sumMetrics(rows);
+  return {
+    combinedTable: {
+      type: "table",
+      kind: "totals",
+      section: "all",
+      headers: ["label", "pass", "turns", "tools", "cached", "uncached", "out", "µ$cost"],
+      rows: [formatTotalsRow("total", total, threshold)],
+      subtitle: "Sum of every all-runs total row from the loaded reports.",
+    },
+  };
+}
+
+function aggregateAllRunTotalsByTask(allReports, threshold) {
+  const byTask = new Map();
+  for (const report of allReports) {
+    for (const table of report.blocks.filter((b) => b.kind === "task" && b.section === "per-task")) {
+      for (const row of table.rows) {
+        const parsed = parseTaskRow(row, report.label, report.repeats, report.repeats);
+        if (!parsed) continue;
+        const current = byTask.get(parsed.task) || emptyTaskTotal(parsed.task);
+        addSideToTask(current, "ap", parsed.ap);
+        addSideToTask(current, "st", parsed.st);
+        byTask.set(parsed.task, current);
+      }
+    }
+  }
+  const tasks = Array.from(byTask.values());
+  if (!tasks.length) return null;
+  return {
+    type: "table",
+    kind: "task",
+    section: "all-task-total",
+    headers: ["task", "pass", "turns", "tools", "cached", "uncached", "out", "µ$cost"],
+    rows: tasks.map((task) => formatTaskTotalRow(task, threshold)),
+    subtitle: "Rows sum the all-run metrics for the same task across loaded reports.",
+  };
+}
+
+function emptyTaskTotal(task) {
+  return {
+    task,
+    ap: { passOk: 0, passTotal: 0, turns: 0, tools: 0, cached: 0, uncached: 0, out: 0, cost: 0 },
+    st: { passOk: 0, passTotal: 0, turns: 0, tools: 0, cached: 0, uncached: 0, out: 0, cost: 0 },
+  };
+}
+
+function addSideToTask(total, side, metrics) {
+  total[side].passOk += metrics.passOk || 0;
+  total[side].passTotal += metrics.passTotal || 0;
+  for (const key of ["turns", "tools", "cached", "uncached", "out", "cost"]) {
+    total[side][key] += metrics[key] || 0;
+  }
+}
+
+function bestParamsSummary(allReports) {
+  const candidates = allReports
+    .map((report) => ({ report, totals: reportAllRunTotal(report) }))
+    .filter((item) => item.totals);
+  if (!candidates.length) return "";
+
+  const bestAp = pickBestParams(candidates, "ap");
+  const bestSt = pickBestParams(candidates, "st");
+  if (!bestAp || !bestSt) return "";
+
+  return [
+    `AP: ${bestAp.report.label} (${formatRate(bestAp.ok, bestAp.total)}, cost ${formatNum(bestAp.cost)})`,
+    `ST: ${bestSt.report.label} (${formatRate(bestSt.ok, bestSt.total)}, cost ${formatNum(bestSt.cost)})`,
+  ].join("\n");
+}
+
+function reportAllRunTotal(report) {
+  for (const table of report.blocks.filter((b) => b.kind === "totals" && b.section === "per-task")) {
+    for (const row of table.rows) {
+      const parsed = parseTotalsRow(row);
+      if (parsed) return parsed;
+    }
+  }
+  return null;
+}
+
+function pickBestParams(candidates, side) {
+  let best = null;
+  for (const item of candidates) {
+    const pass = item.totals.pass;
+    const ok = side === "ap" ? pass.apOk : pass.stOk;
+    const total = side === "ap" ? pass.apTotal : pass.stTotal;
+    const cost = item.totals.cost?.[side] ?? Infinity;
+    const rate = total ? ok / total : 0;
+    const candidate = { report: item.report, ok, total, cost, rate };
+    if (!best || candidate.rate > best.rate || (candidate.rate === best.rate && candidate.cost < best.cost)) {
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+function aggregateBestByTask(allReports, threshold) {
+  const byTask = new Map();
+  for (const report of allReports) {
+    for (const table of report.blocks.filter((b) => b.kind === "task" && b.section === "cheapest")) {
+      for (const row of table.rows) {
+        const parsed = parseTaskRow(row, report.label);
+        if (!parsed) continue;
+        const slot = byTask.get(parsed.task) || { task: parsed.task, ap: null, st: null };
+        slot.ap = chooseBest(slot.ap, parsed.ap);
+        slot.st = chooseBest(slot.st, parsed.st);
+        byTask.set(parsed.task, slot);
+      }
+    }
+  }
+
+  const tasks = Array.from(byTask.values()).sort((a, b) => a.task.localeCompare(b.task));
+  if (!tasks.length) return { taskTable: null, totalTable: null };
+
+  const rows = tasks.map((task) => formatBestTaskRow(task, threshold));
+  const totals = sumMetrics(tasks.map((task) => ({
+    pass: {
+      apOk: task.ap?.passOk || 0,
+      apTotal: task.ap?.passTotal || 0,
+      stOk: task.st?.passOk || 0,
+      stTotal: task.st?.passTotal || 0,
+    },
+    turns: { ap: task.ap?.turns || 0, st: task.st?.turns || 0 },
+    tools: { ap: task.ap?.tools || 0, st: task.st?.tools || 0 },
+    cached: { ap: task.ap?.cached || 0, st: task.st?.cached || 0 },
+    uncached: { ap: task.ap?.uncached || 0, st: task.st?.uncached || 0 },
+    out: { ap: task.ap?.out || 0, st: task.st?.out || 0 },
+    cost: { ap: task.ap?.cost || 0, st: task.st?.cost || 0 },
+  })));
+
+  return {
+    taskTable: {
+      type: "table",
+      kind: "task",
+      section: "all-best",
+      headers: ["task", "pass", "turns", "tools", "cached", "uncached", "out", "µ$cost"],
+      rows,
+      subtitle: "Hover cells to see the AP/ST source report used for that task.",
+    },
+    totalTable: {
+      type: "table",
+      kind: "totals",
+      section: "all-best",
+      headers: ["label", "pass", "turns", "tools", "cached", "uncached", "out", "µ$cost"],
+      rows: [formatTotalsRow("total", totals, threshold)],
+    },
+  };
+}
+
+function chooseBest(current, candidate) {
+  if (!candidate) return current;
+  if (!current) return candidate;
+  if (candidate.passOk && !current.passOk) return candidate;
+  if (!candidate.passOk && current.passOk) return current;
+  return candidate.cost < current.cost ? candidate : current;
+}
+
+function parseTaskRow(row, sourceName, passTotal = 1, metricMultiplier = 1) {
+  const [task, pass, turns, tools, cached, uncached, out, cost] = row.map(cellText);
+  if (!task || !cost) return null;
+  const passPair = parsePassPair(pass, passTotal);
+  const metrics = {
+    turns: parseMetricPair(turns),
+    tools: parseMetricPair(tools),
+    cached: parseMetricPair(cached),
+    uncached: parseMetricPair(uncached),
+    out: parseMetricPair(out),
+    cost: parseMetricPair(cost),
+  };
+  if (!passPair || !metrics.cost) return null;
+
+  return {
+    task,
+    ap: sideMetrics("ap", sourceName, passPair, metrics, metricMultiplier),
+    st: sideMetrics("st", sourceName, passPair, metrics, metricMultiplier),
+  };
+}
+
+function sideMetrics(side, sourceName, passPair, metrics, metricMultiplier = 1) {
+  return {
+    sourceName,
+    passOk: side === "ap" ? passPair.apOk : passPair.stOk,
+    passTotal: side === "ap" ? passPair.apTotal : passPair.stTotal,
+    turns: (metrics.turns?.[side] ?? 0) * metricMultiplier,
+    tools: (metrics.tools?.[side] ?? 0) * metricMultiplier,
+    cached: (metrics.cached?.[side] ?? 0) * metricMultiplier,
+    uncached: (metrics.uncached?.[side] ?? 0) * metricMultiplier,
+    out: (metrics.out?.[side] ?? 0) * metricMultiplier,
+    cost: (metrics.cost?.[side] ?? 0) * metricMultiplier,
+  };
+}
+
+function parsePassPair(value, total = 1) {
+  const m = value.match(/^(\d+)[\u{1F7E2}\u{1F7E1}\u{1F534}](\d+)$/u);
+  if (!m) return null;
+  return {
+    apOk: parseInt(m[1], 10),
+    apTotal: total,
+    stOk: parseInt(m[2], 10),
+    stTotal: total,
+  };
+}
+
+function parseMetricPair(value) {
+  const p = parseCompareCell(value);
+  if (!p || p.nums.length < 2) return null;
+  return { ap: parseNumber(p.nums[0]), st: parseNumber(p.nums[1]) };
+}
+
+function parseTotalsRow(row) {
+  const [label, pass, turns, tools, cached, uncached, out, cost] = row.map(cellText);
+  const passCell = parseTotalPass(pass);
+  if (!passCell) return null;
+  return {
+    label,
+    pass: passCell,
+    turns: parseMetricPair(turns),
+    tools: parseMetricPair(tools),
+    cached: parseMetricPair(cached),
+    uncached: parseMetricPair(uncached),
+    out: parseMetricPair(out),
+    cost: parseMetricPair(cost),
+  };
+}
+
+function parseTotalPass(value) {
+  const m = value.match(/^[+-]?\d+[\u{1F7E2}\u{1F7E1}\u{1F534}](\d+)\/(\d+)\|(\d+)\/(\d+)$/u);
+  if (!m) return null;
+  return {
+    apOk: parseInt(m[1], 10),
+    apTotal: parseInt(m[2], 10),
+    stOk: parseInt(m[3], 10),
+    stTotal: parseInt(m[4], 10),
+  };
+}
+
+function sumMetrics(rows) {
+  const total = {
+    pass: { apOk: 0, apTotal: 0, stOk: 0, stTotal: 0 },
+    turns: { ap: 0, st: 0 },
+    tools: { ap: 0, st: 0 },
+    cached: { ap: 0, st: 0 },
+    uncached: { ap: 0, st: 0 },
+    out: { ap: 0, st: 0 },
+    cost: { ap: 0, st: 0 },
+  };
+  for (const row of rows) {
+    if (!row) continue;
+    total.pass.apOk += row.pass?.apOk || 0;
+    total.pass.apTotal += row.pass?.apTotal || 0;
+    total.pass.stOk += row.pass?.stOk || 0;
+    total.pass.stTotal += row.pass?.stTotal || 0;
+    for (const key of ["turns", "tools", "cached", "uncached", "out", "cost"]) {
+      total[key].ap += row[key]?.ap || 0;
+      total[key].st += row[key]?.st || 0;
+    }
+  }
+  return total;
+}
+
+function formatBestTaskRow(task, threshold) {
+  const tip = `AP: ${task.ap?.sourceName || "n/a"}\nST: ${task.st?.sourceName || "n/a"}`;
+  const ap = task.ap || {};
+  const st = task.st || {};
+  return [
+    { text: task.task, title: tip },
+    { text: formatPass(ap.passOk || 0, st.passOk || 0), title: tip },
+    { text: formatDelta(ap.turns || 0, st.turns || 0, threshold, "raw", 1), title: tip },
+    { text: formatDelta(ap.tools || 0, st.tools || 0, threshold, "raw", 1), title: tip },
+    { text: formatDelta(ap.cached || 0, st.cached || 0, threshold, "pct", 0), title: tip },
+    { text: formatDelta(ap.uncached || 0, st.uncached || 0, threshold, "pct", 0), title: tip },
+    { text: formatDelta(ap.out || 0, st.out || 0, threshold, "pct", 0), title: tip },
+    { text: formatDelta(ap.cost || 0, st.cost || 0, threshold, "raw", 0), title: tip },
+  ];
+}
+
+function formatTaskTotalRow(task, threshold) {
+  const ap = task.ap || {};
+  const st = task.st || {};
+  return [
+    task.task,
+    formatTotalPass({
+      apOk: ap.passOk || 0,
+      apTotal: ap.passTotal || 0,
+      stOk: st.passOk || 0,
+      stTotal: st.passTotal || 0,
+    }),
+    formatDelta(ap.turns || 0, st.turns || 0, threshold, "raw", 0),
+    formatDelta(ap.tools || 0, st.tools || 0, threshold, "raw", 0),
+    formatDelta(ap.cached || 0, st.cached || 0, threshold, "pct", 0),
+    formatDelta(ap.uncached || 0, st.uncached || 0, threshold, "pct", 0),
+    formatDelta(ap.out || 0, st.out || 0, threshold, "pct", 0),
+    formatDelta(ap.cost || 0, st.cost || 0, threshold, "raw", 0),
+  ];
+}
+
+function formatTotalsRow(label, total, threshold) {
+  return [
+    label,
+    formatTotalPass(total.pass),
+    formatDelta(total.turns.ap, total.turns.st, threshold, "raw", 0),
+    formatDelta(total.tools.ap, total.tools.st, threshold, "raw", 0),
+    formatDelta(total.cached.ap, total.cached.st, threshold, "pct", 0),
+    formatDelta(total.uncached.ap, total.uncached.st, threshold, "pct", 0),
+    formatDelta(total.out.ap, total.out.st, threshold, "pct", 0),
+    formatDelta(total.cost.ap, total.cost.st, threshold, "raw", 0),
+  ];
+}
+
+function formatPass(apOk, stOk) {
+  const emoji = stOk > apOk ? "🟢" : stOk < apOk ? "🔴" : "🟡";
+  return `${apOk}${emoji}${stOk}`;
+}
+
+function formatTotalPass(pass) {
+  const delta = pass.stOk - pass.apOk;
+  const emoji = delta > 0 ? "🟢" : delta < 0 ? "🔴" : "🟡";
+  return `${signed(delta)}${emoji}${pass.apOk}/${pass.apTotal}|${pass.stOk}/${pass.stTotal}`;
+}
+
+function formatRate(ok, total) {
+  const pct = total ? (ok / total) * 100 : 0;
+  return `${ok}/${total} ${pct.toFixed(1)}%`;
+}
+
+function formatDelta(ap, st, threshold, mode, decimals) {
+  const delta = st - ap;
+  const pct = ap ? (delta / ap) * 100 : 0;
+  const cmp = mode === "pct" ? pct : delta;
+  const emoji = Math.abs(pct) <= threshold ? "🟡" : delta < 0 ? "🟢" : "🔴";
+  const left = mode === "pct" ? `${signed(pct, 1)}%` : signed(delta, decimals);
+  return `${left}${emoji}${formatNum(ap, decimals)}/${formatNum(st, decimals)}`;
+}
+
+function signed(value, decimals = 0) {
+  const s = decimals ? value.toFixed(decimals) : Math.round(value).toLocaleString("en-US");
+  return value >= 0 ? `+${s}` : s;
+}
+
+function formatNum(value, decimals = 0) {
+  if (decimals) return value.toFixed(decimals);
+  return Math.round(value).toLocaleString("en-US");
+}
+
+function parseNumber(value) {
+  return parseFloat(String(value).replace(/,/g, ""));
+}
+
+function wireTableHover(table) {
+  table.addEventListener("mouseover", (event) => {
+    if (pinned) return;
+    const cell = event.target.closest("td, th");
+    if (!cell || !table.contains(cell)) return;
+    highlightCell(table, cell);
+  });
+
+  table.addEventListener("mouseleave", () => {
+    if (!pinned) clearHighlights(table);
+  });
+
+  table.addEventListener("click", (event) => {
+    const cell = event.target.closest("td, th");
+    if (!cell || !table.contains(cell)) return;
+
+    pinned = cell;
+    clearHighlights(document);
+    highlightCell(table, cell);
+  });
+}
+
+function highlightCell(table, cell) {
+  clearHighlights(table);
+
+  const row = cell.parentElement;
+  const col = cell.dataset.col;
+
+  row.classList.add("hl-row");
+  table.querySelectorAll(`[data-col="${col}"]`).forEach(el => el.classList.add("hl-col"));
+  cell.classList.add("hl-cell");
+}
+
+function clearHighlights(root) {
+  root.querySelectorAll(".hl-row").forEach(el => el.classList.remove("hl-row"));
+  root.querySelectorAll(".hl-col").forEach(el => el.classList.remove("hl-col"));
+  root.querySelectorAll(".hl-cell").forEach(el => el.classList.remove("hl-cell"));
+}
+
+const SEMAPHORE = /[\u{1F7E2}\u{1F7E1}\u{1F534}]/u; // 🟢 🟡 🔴
+
+function parseCompareCell(value) {
+  const m = value.match(SEMAPHORE);
+  if (!m) return null;
+  const left = value.slice(0, m.index).trim();
+  const emoji = m[0];
+  const right = value.slice(m.index + m[0].length).trim();
+  // per-task pass cell "ap🟢st" has no delta -> compute the signed st-ap delta
+  if (/^\d+$/.test(left) && /^\d+$/.test(right)) {
+    const d = parseInt(right, 10) - parseInt(left, 10);
+    return { delta: (d >= 0 ? "+" : "") + d, emoji, nums: [left, right] };
+  }
+  const nums = right ? right.split("/").map((s) => s.trim()) : [];
+  return { delta: left, emoji, nums };
+}
+
+function semaphoreClass(emoji) {
+  if (emoji === "🟢") return "d-win";
+  if (emoji === "🔴") return "d-loss";
+  return "d-tie";
+}
+
+function stripAnsi(text) {
+  return text.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
+}
+</script>
+</body>
+</html>

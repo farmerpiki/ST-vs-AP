@@ -1,0 +1,26 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..7d6eb6d 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -40,14 +40,16 @@ std::vector<double> Matrix::SumPerRow() const {
+ // which is much larger than a typical cache line (64 bytes / 8 doubles).
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
++// Per-column sum: walk row-major instead of column-major. The outer loop
++// goes over rows and the inner loop walks a contiguous row, so every
++// inner-loop access is to consecutive memory. We accumulate directly into
++// the per-column output buffer.
+ std::vector<double> Matrix::SumPerColumn() const {
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
++    for (std::size_t r = 0; r < rows_; ++r) {
++        for (std::size_t c = 0; c < cols_; ++c) {
++            result[c] += data_[r * cols_ + c];
+         }
+-        result[c] = s;
+     }
+     return result;
+ }

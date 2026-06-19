@@ -1,0 +1,37 @@
+{
+  "calibrated_at": 1781793106.121093,
+  "variants": {
+    "apply_patch": {
+      "variant": "apply_patch",
+      "model": "minimax",
+      "timestamp": 1781793108.3273633,
+      "measurements": [
+        {
+          "task": "eval/tasks/001_set_line.yml",
+          "prompt_sha": "6716103ca92da8a28674df4e61f46f316b26d792b7f7e197728b3d805b929365",
+          "local_sys_tokens": 507,
+          "local_schema_tokens": 570,
+          "local_sys_plus_schema": 1077,
+          "server_input_cold": 1515,
+          "static_cold_minus_hi": 1514
+        }
+      ]
+    },
+    "span_tools": {
+      "variant": "span_tools",
+      "model": "minimax",
+      "timestamp": 1781793109.481006,
+      "measurements": [
+        {
+          "task": "eval/tasks/001_set_line.yml",
+          "prompt_sha": "336c883a1875efa130793954cfd998c255449f9f1fcf8e44559a8d067e92007e",
+          "local_sys_tokens": 857,
+          "local_schema_tokens": 905,
+          "local_sys_plus_schema": 1762,
+          "server_input_cold": 2271,
+          "static_cold_minus_hi": 2270
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+diff --git a/include/parser.hpp b/include/parser.hpp
+index fdd346c..83fe10c 100644
+--- a/include/parser.hpp
++++ b/include/parser.hpp
+@@ -13,6 +13,7 @@ struct Token {
+ };
+ 
+ std::optional<std::string> ParseName(std::string_view input);
++std::optional<std::string> ParseIdentifier(std::string_view input);
+ std::vector<Token> Tokenize(std::string_view input);
+ 
+ }  // namespace tiny

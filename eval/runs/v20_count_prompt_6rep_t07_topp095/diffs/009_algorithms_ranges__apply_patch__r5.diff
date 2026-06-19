@@ -1,0 +1,52 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..0e3870a 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
+ #include <stdexcept>
++#include <algorithm>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -41,14 +43,31 @@ std::vector<double> Matrix::SumPerRow() const {
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
++    // Minimal counting iterator: yields 0, 1, 2, ... as std::size_t.
++    // Only the operations std::transform / std::accumulate need.
++    struct CountIter {
++        using iterator_category = std::input_iterator_tag;
++        using value_type = std::size_t;
++        using difference_type = std::ptrdiff_t;
++        using pointer = const std::size_t*;
++        using reference = std::size_t;
++
++        std::size_t i = 0;
++        std::size_t operator*() const { return i; }
++        CountIter& operator++() { ++i; return *this; }
++        bool operator!=(const CountIter& other) const { return i != other.i; }
++    };
++
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    std::transform(
++        CountIter{0}, CountIter{cols_}, result.begin(),
++        [this](std::size_t c) {
++            return std::accumulate(
++                CountIter{0}, CountIter{rows_}, 0.0,
++                [this, c](double acc, std::size_t r) {
++                    return acc + at(r, c);
++                });
++        });
+     return result;
+ }
+ 

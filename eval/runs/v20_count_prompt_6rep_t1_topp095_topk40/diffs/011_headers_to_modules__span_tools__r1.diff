@@ -1,0 +1,104 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index db70a80..f1de11c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -14,3 +14,10 @@ add_executable(app
+   src/vec.cpp
+ )
+ target_include_directories(app PRIVATE src)
++
++target_sources(app PRIVATE
++  FILE_SET CXX_MODULES FILES
++    src/vec.cpp
++    src/shape.cpp
++)
++target_include_directories(app PRIVATE src)
+diff --git a/src/app.cpp b/src/app.cpp
+index 3d0e696..8cf386a 100644
+--- a/src/app.cpp
++++ b/src/app.cpp
+@@ -1,4 +1,4 @@
+-#include "shape.hpp"
++import geo.shape;
+ 
+ #include <cmath>
+ #include <cstdio>
+diff --git a/src/shape.cpp b/src/shape.cpp
+index d1a0af8..56b8a7d 100644
+--- a/src/shape.cpp
++++ b/src/shape.cpp
+@@ -1,12 +1,14 @@
+-#include "shape.hpp"
+-
+-#include "vec.hpp"
++module;
+ 
+ #include <cmath>
+ 
++export module geo.shape;
++
++import geo.vec;
++
+ namespace geo {
+ 
+-double TriangleArea(double ax, double ay, double bx, double by) {
++export double TriangleArea(double ax, double ay, double bx, double by) {
+     Vec2 a{ax, ay};
+     Vec2 b{bx, by};
+     return std::fabs(Cross(a, b)) / 2.0;
+diff --git a/src/shape.hpp b/src/shape.hpp
+index 5a46383..8b13789 100644
+--- a/src/shape.hpp
++++ b/src/shape.hpp
+@@ -1,8 +1 @@
+-#pragma once
+ 
+-namespace geo {
+-
+-// Area of the triangle with vertices (0,0), (ax, ay), (bx, by).
+-double TriangleArea(double ax, double ay, double bx, double by);
+-
+-}  // namespace geo
+diff --git a/src/vec.cpp b/src/vec.cpp
+index b9b3b2c..2ef46a7 100644
+--- a/src/vec.cpp
++++ b/src/vec.cpp
+@@ -1,12 +1,17 @@
+-#include "vec.hpp"
++export module geo.vec;
+ 
+ namespace geo {
+ 
+-Vec2 Add(Vec2 a, Vec2 b) {
++export struct Vec2 {
++    double x;
++    double y;
++};
++
++export Vec2 Add(Vec2 a, Vec2 b) {
+     return {a.x + b.x, a.y + b.y};
+ }
+ 
+-double Cross(Vec2 a, Vec2 b) {
++export double Cross(Vec2 a, Vec2 b) {
+     return a.x * b.y - a.y * b.x;
+ }
+ 
+diff --git a/src/vec.hpp b/src/vec.hpp
+index d182136..8b13789 100644
+--- a/src/vec.hpp
++++ b/src/vec.hpp
+@@ -1,13 +1 @@
+-#pragma once
+ 
+-namespace geo {
+-
+-struct Vec2 {
+-    double x;
+-    double y;
+-};
+-
+-Vec2 Add(Vec2 a, Vec2 b);
+-double Cross(Vec2 a, Vec2 b);
+-
+-}  // namespace geo

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Worktrees are scratch dirs created per-run by the harness.
+# Each contains its own internal git, reproducible by re-running
+# the eval with --keep-worktrees (or just letting it create them).
+runs/*/worktrees/

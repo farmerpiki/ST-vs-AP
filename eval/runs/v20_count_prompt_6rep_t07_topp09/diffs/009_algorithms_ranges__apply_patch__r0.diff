@@ -1,0 +1,64 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..2242ef9 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
+ #include <stdexcept>
++#include <algorithm>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -41,14 +43,45 @@ std::vector<double> Matrix::SumPerRow() const {
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
++    struct StridedIter {
++        const double* p;
++        std::ptrdiff_t stride;
++        using iterator_category = std::random_access_iterator_tag;
++        using value_type = double;
++        using difference_type = std::ptrdiff_t;
++        using pointer = const double*;
++        using reference = double;
++        double operator*() const { return *p; }
++        StridedIter& operator++() { p += stride; return *this; }
++        StridedIter operator++(int) { auto t = *this; ++(*this); return t; }
++        StridedIter& operator--() { p -= stride; return *this; }
++        StridedIter operator--(int) { auto t = *this; --(*this); return t; }
++        StridedIter& operator+=(difference_type n) { p += n * stride; return *this; }
++        StridedIter& operator-=(difference_type n) { p -= n * stride; return *this; }
++        StridedIter operator+(difference_type n) const { auto t = *this; return t += n; }
++        StridedIter operator-(difference_type n) const { auto t = *this; return t -= n; }
++        difference_type operator-(const StridedIter& o) const { return (p - o.p) / stride; }
++        double operator[](difference_type n) const { return p[n * stride]; }
++        bool operator==(const StridedIter& o) const { return p == o.p; }
++        bool operator!=(const StridedIter& o) const { return p != o.p; }
++        bool operator<(const StridedIter& o) const { return p < o.p; }
++        bool operator>(const StridedIter& o) const { return p > o.p; }
++        bool operator<=(const StridedIter& o) const { return p <= o.p; }
++        bool operator>=(const StridedIter& o) const { return p >= o.p; }
++    };
+     std::vector<double> result(cols_, 0.0);
++    const std::ptrdiff_t stride = static_cast<std::ptrdiff_t>(cols_);
++    std::vector<StridedIter> starts;
++    starts.reserve(cols_);
+     for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
++        starts.push_back(StridedIter{&at(0, c), stride});
+     }
++    std::transform(starts.begin(), starts.end(), result.begin(),
++                   [this, stride](StridedIter it) {
++                       StridedIter first = it;
++                       StridedIter last{it.p + static_cast<std::ptrdiff_t>(rows_) * stride, it.stride};
++                       return std::accumulate(first, last, 0.0);
++                   });
+     return result;
+ }
+ 

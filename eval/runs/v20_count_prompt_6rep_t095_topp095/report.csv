@@ -1,0 +1,12 @@
+task,n,both_success,baseline_success,span_success,baseline_median,span_median,savings_pct,write_arg_delta,turns_delta,baseline_cached_median,span_cached_median,baseline_reasoning_median,span_reasoning_median
+001_set_line,6,6,6,6,14706,20387,-38.6,-109,1,12665,18661,0,0
+002_insert_guard,6,6,6,6,8513,14280,-67.7,-36,1,7082,12849,0,0
+003_delete_block,6,6,6,6,9067,17414,-92.0,-83,1,7394,15596,0,0
+004_replace_block,6,6,6,6,11869,19980,-68.3,-190,1,9907,17961,0,0
+005_move_helper,6,5,5,6,30034,47202,-135.8,-164,5,25804,43155,0,0
+006_rename_identifier,6,5,5,6,10498,12489,-24.0,-134,0,7810,10581,0,0
+007_multi_edit,6,6,6,6,23873,20236,15.2,-146,-2,19545,14450,0,0
+008_bug_investigation,6,6,6,6,7767,13993,-80.2,-63,1,5758,12193,0,0
+009_algorithms_ranges,6,4,6,4,45958,83495,-25.4,-1940,0,37559,72610,0,0
+010_matrix_perf,6,6,6,6,21356,23845,-11.7,-340,0,15980,20352,0,0
+011_headers_to_modules,6,5,5,6,82130,72536,26.1,-574,-5,68242,62541,0,0

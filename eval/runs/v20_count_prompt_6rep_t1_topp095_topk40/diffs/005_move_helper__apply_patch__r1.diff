@@ -1,0 +1,29 @@
+diff --git a/src/parser.cpp b/src/parser.cpp
+index 614be90..bac3b78 100644
+--- a/src/parser.cpp
++++ b/src/parser.cpp
+@@ -11,9 +11,12 @@ bool IsNameChar(char c) {
+     return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+ }
+ 
++bool IsWhitespace(char c) {
++    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
++}
++
+ }  // namespace
+ 
+-bool IsWhitespace(char c);
+ 
+ std::vector<Token> Tokenize(std::string_view input) {
+     std::vector<Token> out;
+@@ -41,10 +44,6 @@ std::vector<Token> Tokenize(std::string_view input) {
+     return out;
+ }
+ 
+-bool IsWhitespace(char c) {
+-    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+-}
+-
+ std::optional<std::string> ParseName(std::string_view input) {
+     std::string acc;
+     for (std::size_t i = 0; i < input.size(); ++i) {

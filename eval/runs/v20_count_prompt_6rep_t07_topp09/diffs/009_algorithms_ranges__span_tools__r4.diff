@@ -1,0 +1,35 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..57e6c04 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,5 +1,7 @@
+ #include "matrix.hpp"
+ 
++#include <algorithm>
++#include <numeric>
+ #include <stdexcept>
+ 
+ namespace tiny {
+@@ -42,13 +44,15 @@ std::vector<double> Matrix::SumPerRow() const {
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    std::vector<std::size_t> idx(cols_);
++    std::iota(idx.begin(), idx.end(), std::size_t{0});
++    std::transform(idx.begin(), idx.end(), result.begin(), [this](std::size_t c) {
++        std::vector<std::size_t> rows(rows_);
++        std::iota(rows.begin(), rows.end(), std::size_t{0});
++        return std::accumulate(
++            rows.begin(), rows.end(), 0.0,
++            [this, c](double acc, std::size_t r) { return acc + at(r, c); });
++    });
+     return result;
+ }
+ 

@@ -1,0 +1,53 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..a11f448 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
+ #include <stdexcept>
++#include <algorithm>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -41,14 +43,32 @@ std::vector<double> Matrix::SumPerRow() const {
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
++    // Strided forward iterator over a column of the row-major buffer, and a
++    // counting iterator over column indices. std::accumulate sums each column;
++    // std::transform drives the per-column outputs into the result vector.
++    struct ColIter {
++        const double* p;
++        std::ptrdiff_t stride;
++        std::size_t left;
++        const double& operator*() const { return *p; }
++        ColIter& operator++() { p += stride; --left; return *this; }
++        bool operator!=(const ColIter& o) const { return left != o.left; }
++    };
++    struct IdxIter {
++        std::size_t i;
++        std::size_t operator*() const { return i; }
++        IdxIter& operator++() { ++i; return *this; }
++        bool operator!=(const IdxIter& o) const { return i != o.i; }
++    };
++    const double* base = data_.data();
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    std::transform(IdxIter{0}, IdxIter{cols_}, result.begin(),
++        [base, rows = rows_, cols = cols_](std::size_t c) {
++            return std::accumulate(
++                ColIter{base + c, static_cast<std::ptrdiff_t>(cols), rows},
++                ColIter{base + c, static_cast<std::ptrdiff_t>(cols), 0},
++                0.0);
++        });
+     return result;
+ }
+ 

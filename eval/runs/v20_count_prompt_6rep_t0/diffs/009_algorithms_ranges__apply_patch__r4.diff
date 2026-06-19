@@ -1,0 +1,31 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..3b5c665 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
++#include <algorithm>
+ #include <stdexcept>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -43,11 +45,12 @@ std::vector<double> Matrix::SumPerRow() const {
+ std::vector<double> Matrix::SumPerColumn() const {
+     std::vector<double> result(cols_, 0.0);
+     for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
++        std::vector<std::size_t> rows(rows_);
++        std::iota(rows.begin(), rows.end(), std::size_t{0});
++        std::vector<double> column(rows_);
++        std::transform(rows.begin(), rows.end(), column.begin(),
++                       [this, c](std::size_t r) { return at(r, c); });
++        result[c] = std::accumulate(column.begin(), column.end(), 0.0);
+     }
+     return result;
+ }

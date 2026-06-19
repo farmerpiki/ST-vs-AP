@@ -1,0 +1,49 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..cfe635f 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
+ #include <stdexcept>
++#include <algorithm>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -41,14 +43,27 @@ std::vector<double> Matrix::SumPerRow() const {
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
+-    std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    std::vector<double> result(cols_);
++    struct StrideIter {
++        using iterator_category = std::input_iterator_tag;
++        using value_type = double;
++        using difference_type = std::ptrdiff_t;
++        using pointer = const double*;
++        using reference = const double&;
++        const double* p;
++        std::ptrdiff_t step;
++        reference operator*() const { return *p; }
++        StrideIter& operator++() { p += step; return *this; }
++        bool operator!=(const StrideIter& o) const { return p != o.p; }
++    };
++    const std::ptrdiff_t step = static_cast<std::ptrdiff_t>(cols_);
++    std::vector<std::size_t> idx(cols_);
++    std::iota(idx.begin(), idx.end(), std::size_t{0});
++    std::transform(idx.begin(), idx.end(), result.begin(), [this, step](std::size_t c) {
++        StrideIter it{data_.data() + c, step};
++        StrideIter end{data_.data() + c + step * static_cast<std::ptrdiff_t>(rows_), step};
++        return std::accumulate(it, end, 0.0);
++    });
+     return result;
+ }
+ 

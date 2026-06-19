@@ -1,0 +1,49 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..c4b2969 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,5 +1,7 @@
+ #include "matrix.hpp"
+ 
++#include <algorithm>
++#include <numeric>
+ #include <stdexcept>
+ 
+ namespace tiny {
+@@ -41,17 +43,27 @@ std::vector<double> Matrix::SumPerRow() const {
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
+-    std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    struct StridedIter {
++        const double* p;
++        std::ptrdiff_t stride;
++        double operator*() const { return *p; }
++        StridedIter& operator++() { p += stride; return *this; }
++        bool operator!=(const StridedIter& o) const { return p != o.p; }
++    };
++    const std::size_t rows = rows_;
++    const std::size_t cols = cols_;
++    std::vector<double> result(cols);
++    std::vector<std::size_t> indices(cols);
++    std::iota(indices.begin(), indices.end(), std::size_t{0});
++    std::transform(indices.begin(), indices.end(), result.begin(),
++                   [this, rows, cols](std::size_t c) {
++                       StridedIter it{data_.data() + c,
++                                      static_cast<std::ptrdiff_t>(cols)};
++                       StridedIter end{data_.data() + rows * cols, 0};
++                       return std::accumulate(it, end, 0.0);
++                   });
+     return result;
+ }
+-
+ // In-place transpose of a square matrix. We swap at(i, j) with at(j, i)
+ // for the upper triangle. The row-major layout means at(i, j) reads
+ // `cols_` elements ahead of the previous read - on a wide matrix that

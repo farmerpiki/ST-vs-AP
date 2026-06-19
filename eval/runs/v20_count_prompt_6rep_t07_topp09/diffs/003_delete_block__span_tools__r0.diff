@@ -1,0 +1,20 @@
+diff --git a/src/normalize.cpp b/src/normalize.cpp
+index 46cd70f..a03b4c3 100644
+--- a/src/normalize.cpp
++++ b/src/normalize.cpp
+@@ -6,14 +6,10 @@
+ namespace tiny {
+ 
+ std::string NormalizePath(std::string_view input) {
+-    if (input.empty()) {
+-        // Legacy fallback: callers used to receive "." for empty input.
+-        // Current contract is to return an empty string instead.
+-        return ".";
+-    }
+     std::string out;
+     out.reserve(input.size());
+     bool last_was_slash = false;
++    bool last_was_slash = false;
+     for (char c : input) {
+         if (c == '/' || c == '\\') {
+             if (!last_was_slash && !out.empty()) {

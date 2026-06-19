@@ -1,0 +1,33 @@
+diff --git a/src/normalize.cpp b/src/normalize.cpp
+index 46cd70f..3dc6e14 100644
+--- a/src/normalize.cpp
++++ b/src/normalize.cpp
+@@ -1,6 +1,6 @@
+ #include "normalize.hpp"
+ 
+-#include <cctype>
++#include <algorithm>
+ #include <string>
+ 
+ namespace tiny {
+@@ -30,19 +30,7 @@ std::string NormalizePath(std::string_view input) {
+ }
+ 
+ unsigned char ClampToByte(int value) {
+-    // Old verbose form kept for reference; current implementation is
+-    // simpler. We keep this block deliberately wordy.
+-    unsigned char result;
+-    if (value < 0) {
+-        result = 0;
+-    } else {
+-        if (value > 255) {
+-            result = 255;
+-        } else {
+-            result = static_cast<unsigned char>(value);
+-        }
+-    }
+-    return result;
++    return static_cast<unsigned char>(std::clamp(value, 0, 255));
+ }
+ 
+ }  // namespace tiny

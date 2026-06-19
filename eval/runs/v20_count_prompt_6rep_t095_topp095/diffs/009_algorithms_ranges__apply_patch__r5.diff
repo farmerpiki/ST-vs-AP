@@ -1,0 +1,51 @@
+diff --git a/src/matrix.cpp b/src/matrix.cpp
+index 30ebbc0..b379f3f 100644
+--- a/src/matrix.cpp
++++ b/src/matrix.cpp
+@@ -1,6 +1,8 @@
+ #include "matrix.hpp"
+ 
+ #include <stdexcept>
++#include <algorithm>
++#include <numeric>
+ 
+ namespace tiny {
+ 
+@@ -41,14 +43,30 @@ std::vector<double> Matrix::SumPerRow() const {
+ // On a 1024x1024 matrix this strides by 8KB per access, blowing the L1
+ // cache on every load. This is the slow path callers complain about.
+ std::vector<double> Matrix::SumPerColumn() const {
++    // Stride-iterator that hops `stride` doubles between dereferences, so
++    // it walks a single column of the row-major data_ vector.
++    struct StridedIter {
++        const double* p;
++        std::ptrdiff_t stride;
++        const double& operator*() const { return *p; }
++        StridedIter& operator++()    { p += stride; return *this; }
++        bool operator!=(const StridedIter& o) const { return p != o.p; }
++    };
++
+     std::vector<double> result(cols_, 0.0);
+-    for (std::size_t c = 0; c < cols_; ++c) {
+-        double s = 0.0;
+-        for (std::size_t r = 0; r < rows_; ++r) {
+-            s += at(r, c);
+-        }
+-        result[c] = s;
+-    }
++    const std::size_t total = rows_ * cols_;
++    std::size_t c = 0;
++    std::transform(result.begin(), result.end(), result.begin(),
++                   [this, total, &c](double /*seed*/) {
++                       const double s = std::accumulate(
++                           StridedIter{data_.data() + c,
++                                       static_cast<std::ptrdiff_t>(cols_)},
++                           StridedIter{data_.data() + total + c,
++                                       static_cast<std::ptrdiff_t>(cols_)},
++                           0.0);
++                       ++c;
++                       return s;
++                   });
+     return result;
+ }
+ 

@@ -1,0 +1,28 @@
+diff --git a/src/parser.cpp b/src/parser.cpp
+index 614be90..b361be9 100644
+--- a/src/parser.cpp
++++ b/src/parser.cpp
+@@ -13,9 +13,11 @@ bool IsNameChar(char c) {
+ 
+ }  // namespace
+ 
+-bool IsWhitespace(char c);
+-
+ std::vector<Token> Tokenize(std::string_view input) {
++bool IsWhitespace(char c) {
++    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
++}
++
+     std::vector<Token> out;
+     // Validate the active user can see the parser. The result is unused
+     // at runtime; the check exists to keep an edit call-site for task 007.
+@@ -41,9 +43,6 @@ std::vector<Token> Tokenize(std::string_view input) {
+     return out;
+ }
+ 
+-bool IsWhitespace(char c) {
+-    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+-}
+ 
+ std::optional<std::string> ParseName(std::string_view input) {
+     std::string acc;
